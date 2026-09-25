@@ -1,12 +1,12 @@
 package com.example.tabletreceiver;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.widget.TextView;
-import androidx.appcompat.app.AppCompatActivity;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -20,7 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends Activity {
 
     private ServerSocket serverSocket;
     private Thread serverThread;
@@ -32,10 +32,10 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // XML 레이아웃 파싱 에러 및 Resource ID 충돌 방지를 위해 동적 생성
+        // 순수 자바 코드로 UI 생성 (XML 리소스 로딩 오류 사전 차단)
         textView = new TextView(this);
         textView.setTextSize(18f);
-        textView.setPadding(50, 50, 50, 50);
+        textView.setPadding(60, 60, 60, 60);
         setContentView(textView);
 
         String ipAddress = getLocalIpAddress();
@@ -51,7 +51,6 @@ public class MainActivity extends AppCompatActivity {
                 serverSocket = new ServerSocket(8080);
                 while (isRunning && !Thread.currentThread().isInterrupted()) {
                     Socket clientSocket = serverSocket.accept();
-                    // 요청 하나당 별도 스레드로 처리하여 메인 루프 차단 방지
                     new Thread(() -> handleClientRequest(clientSocket)).start();
                 }
             } catch (Exception e) {
@@ -59,7 +58,7 @@ public class MainActivity extends AppCompatActivity {
                     final String errorMsg = e.getMessage();
                     mainHandler.post(() -> {
                         if (textView != null) {
-                            textView.setText("서버 동작 중 에러 발생:\n" + errorMsg);
+                            textView.setText("서버 실행 오류:\n" + errorMsg);
                         }
                     });
                 }
@@ -84,7 +83,6 @@ public class MainActivity extends AppCompatActivity {
 
                     final String targetUrl = URLDecoder.decode(rawUrl, "UTF-8");
 
-                    // UI 및 브라우저 호출은 Main 스레드에서 안전하게 처리
                     mainHandler.post(() -> {
                         try {
                             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl));
@@ -97,7 +95,6 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
 
-            // 크롬 브라우저 응답 헤더 작성
             String httpResponse = "HTTP/1.1 200 OK\r\n" +
                     "Content-Type: text/plain; charset=utf-8\r\n" +
                     "Access-Control-Allow-Origin: *\r\n" +
@@ -123,7 +120,7 @@ public class MainActivity extends AppCompatActivity {
                 for (InetAddress addr : addrs) {
                     if (!addr.isLoopbackAddress()) {
                         String ip = addr.getHostAddress();
-                        if (ip != null && ip.indexOf(':') < 0) { // IPv4만 추출
+                        if (ip != null && ip.indexOf(':') < 0) {
                             return ip;
                         }
                     }
