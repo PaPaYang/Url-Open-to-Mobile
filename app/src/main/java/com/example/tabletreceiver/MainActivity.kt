@@ -1,73 +1,54 @@
-package com.example.tabletreceiver
+package com.example.tabletreceiver;
 
-import android.Manifest
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
-import android.os.Bundle
-import android.widget.TextView
-import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
+import android.content.Intent;
+import android.os.Build;
+import android.os.Bundle;
+import android.widget.TextView;
+import androidx.appcompat.app.AppCompatActivity;
 
-class MainActivity : AppCompatActivity() {
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.util.Collections;
+import java.util.List;
 
-    private val PERMISSION_REQUEST_CODE = 200
+public class MainActivity extends AppCompatActivity {
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
 
-        // XML 레이아웃 파일 없이 화면 텍스트 구성
-        val textView = TextView(this).apply {
-            text = "Tablet Receiver 실행 중\n\n크롬 확장프로그램에서 URL을 전송하면\n이 태블릿에서 자동으로 열립니다."
-            textSize = 18f
-            setPadding(60, 60, 60, 60)
-        }
-        setContentView(textView)
+        TextView textView = new TextView(this);
+        textView.setTextSize(18);
+        textView.setPadding(60, 60, 60, 60);
+        setContentView(textView);
 
-        checkAndRequestPermissions()
-    }
-
-    private fun checkAndRequestPermissions() {
-        val permissions = mutableListOf<String>()
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                permissions.add(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }
-
-        if (permissions.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
+        // 백그라운드 포그라운드 서비스 실행
+        Intent serviceIntent = new Intent(this, SafeNetworkService.class);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent);
         } else {
-            startSafeService()
+            startService(serviceIntent);
         }
+
+        String ipAddress = getIPAddress();
+        textView.setText("Tablet Receiver 서비스가 백그라운드에서 실행되었습니다.\n\n이 앱을 닫아도 백그라운드에서 수신 가능합니다.\n\n태블릿 IP 주소:\n" + ipAddress + "\n\n포트: 8080");
     }
 
-    private fun startSafeService() {
-        val serviceIntent = Intent(this, SafeNetworkService::class.java)
-
+    private String getIPAddress() {
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(serviceIntent)
-            } else {
-                startService(serviceIntent)
+            List<NetworkInterface> interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
+            for (NetworkInterface intf : interfaces) {
+                List<InetAddress> addrs = Collections.list(intf.getInetAddresses());
+                for (InetAddress addr : addrs) {
+                    if (!addr.isLoopbackAddress()) {
+                        String sAddr = addr.getHostAddress();
+                        if (sAddr != null && sAddr.indexOf(':') < 0) {
+                            return sAddr;
+                        }
+                    }
+                }
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Toast.makeText(this, "서비스를 시작할 수 없습니다: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == PERMISSION_REQUEST_CODE) {
-            startSafeService()
-        }
+        } catch (Exception ignored) { }
+        return "Wi-Fi 연결 확인 필요";
     }
 }
