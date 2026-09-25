@@ -1,8 +1,13 @@
 package com.example.tabletreceiver;
 
 import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.TypedValue;
+import android.view.Gravity;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -17,12 +22,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        TextView textView = new TextView(this);
-        textView.setTextSize(18);
-        textView.setPadding(60, 60, 60, 60);
-        setContentView(textView);
-
-        // 백그라운드 포그라운드 서비스 실행
+        // 백그라운드 서비스 시작
         Intent serviceIntent = new Intent(this, SafeNetworkService.class);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(serviceIntent);
@@ -30,25 +30,82 @@ public class MainActivity extends AppCompatActivity {
             startService(serviceIntent);
         }
 
-        String ipAddress = getIPAddress();
-        textView.setText("Tablet Receiver 서비스가 백그라운드에서 실행되었습니다.\n\n이 앱을 닫아도 백그라운드에서 수신 가능합니다.\n\n태블릿 IP 주소:\n" + ipAddress + "\n\n포트: 8080");
+        // 레이아웃 구성
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(60, 80, 60, 80);
+        layout.setGravity(Gravity.CENTER_HORIZONTAL);
+        layout.setBackgroundColor(Color.parseColor("#F5F7FA"));
+
+        TextView titleView = new TextView(this);
+        titleView.setText("Tablet Receiver");
+        titleView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 26);
+        titleView.setTypeface(null, Typeface.BOLD);
+        titleView.setTextColor(Color.parseColor("#1A1F36"));
+        titleView.setPadding(0, 0, 0, 40);
+        layout.addView(titleView);
+
+        // IP 표시 카드 레이아웃
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(50, 50, 50, 50);
+        card.setBackgroundColor(Color.WHITE);
+
+        String ipAddress = getLocalIpAddress();
+
+        TextView statusLabel = new TextView(this);
+        statusLabel.setText("🟢 백그라운드 수신 중 (자동 실행 됨)");
+        statusLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        statusLabel.setTextColor(Color.parseColor("#2E7D32"));
+        statusLabel.setTypeface(null, Typeface.BOLD);
+        card.addView(statusLabel);
+
+        TextView ipLabel = new TextView(this);
+        ipLabel.setText("\n태블릿 내부 IP 주소:");
+        ipLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        ipLabel.setTextColor(Color.parseColor("#6B7280"));
+        card.addView(ipLabel);
+
+        TextView ipValue = new TextView(this);
+        ipValue.setText(ipAddress);
+        ipValue.setTextSize(TypedValue.COMPLEX_UNIT_SP, 28);
+        ipValue.setTypeface(null, Typeface.BOLD);
+        ipValue.setTextColor(Color.parseColor("#2563EB"));
+        card.addView(ipValue);
+
+        TextView portLabel = new TextView(this);
+        portLabel.setText("\n포트: 8080");
+        portLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        portLabel.setTextColor(Color.parseColor("#4B5563"));
+        card.addView(portLabel);
+
+        layout.addView(card);
+
+        TextView guideView = new TextView(this);
+        guideView.setText("\n\n크롬 확장프로그램 옵션에서 위 IP 주소를 입력해 주세요.\n태블릿을 재부팅해도 서비스가 자동 실행됩니다.");
+        guideView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        guideView.setTextColor(Color.parseColor("#6B7280"));
+        guideView.setGravity(Gravity.CENTER);
+        layout.addView(guideView);
+
+        setContentView(layout);
     }
 
-    private String getIPAddress() {
+    private String getLocalIpAddress() {
         try {
             List<NetworkInterface> interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
             for (NetworkInterface intf : interfaces) {
                 List<InetAddress> addrs = Collections.list(intf.getInetAddresses());
                 for (InetAddress addr : addrs) {
                     if (!addr.isLoopbackAddress()) {
-                        String sAddr = addr.getHostAddress();
-                        if (sAddr != null && sAddr.indexOf(':') < 0) {
-                            return sAddr;
+                        String ip = addr.getHostAddress();
+                        if (ip != null && ip.indexOf(':') < 0) { // IPv4만 추출
+                            return ip;
                         }
                     }
                 }
             }
-        } catch (Exception ignored) { }
-        return "Wi-Fi 연결 확인 필요";
+        } catch (Exception ignored) {}
+        return "Wi-Fi 연결을 확인해주세요";
     }
 }
