@@ -1,0 +1,2 @@
+rootProject.name = "Url-Open-to-Mobile"
+include ':app'
