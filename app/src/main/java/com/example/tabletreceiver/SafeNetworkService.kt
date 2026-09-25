@@ -18,15 +18,16 @@ import java.net.URLDecoder
 class SafeNetworkService : Service() {
 
     private var serverSocket: ServerSocket? = null
+    @Volatile
     private var isRunning = false
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         createNotificationChannel()
-        
-        // 상단 알림창 설정 (어플 이름과 동일하게 적용)
+
+        // 상단 알림창 설정 (안드로이드 시스템이 백그라운드 프로세스를 종료하지 못하게 방지)
         val notification = NotificationCompat.Builder(this, "TABLET_RECEIVER_CHANNEL")
             .setContentTitle("Tablet Receiver")
-            .setContentText("페이지 수신 대기 중...")
+            .setContentText("백그라운드에서 수신 대기 중...")
             .setSmallIcon(android.R.drawable.stat_notify_sync)
             .setOngoing(true)
             .build()
@@ -38,6 +39,7 @@ class SafeNetworkService : Service() {
             startServer()
         }
 
+        // 강제 종료되어도 시스템이 자동으로 서비스를 재시작하도록 설정
         return START_STICKY
     }
 
@@ -57,7 +59,7 @@ class SafeNetworkService : Service() {
 
     private fun handleSocket(socket: Socket) {
         try {
-            val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
+            val reader = BufferedReader(InputStreamReader(socket.getInputStream(), "UTF-8"))
             val out: OutputStream = socket.getOutputStream()
             val requestLine = reader.readLine()
 
@@ -71,7 +73,7 @@ class SafeNetworkService : Service() {
                     }
                     val decodedUrl = URLDecoder.decode(targetUrl, "UTF-8")
 
-                    // 태블릿 기본 브라우저로 열기
+                    // 태블릿 기본 브라우저로 페이지 열기
                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(decodedUrl)).apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
@@ -79,7 +81,6 @@ class SafeNetworkService : Service() {
                 }
             }
 
-            // HTTP 200 OK 응답
             val response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nOK"
             out.write(response.toByteArray(Charsets.UTF_8))
             out.flush()
@@ -94,7 +95,7 @@ class SafeNetworkService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 "TABLET_RECEIVER_CHANNEL",
-                "Tablet Receiver", // 알림 설정 화면에 보이는 채널 이름
+                "Tablet Receiver",
                 NotificationManager.IMPORTANCE_LOW
             )
             val manager = getSystemService(NotificationManager::class.java)
