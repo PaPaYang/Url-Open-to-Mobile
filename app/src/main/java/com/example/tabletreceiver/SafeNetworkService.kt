@@ -1,4 +1,4 @@
-package com.example.safeapp
+package com.example.tabletreceiver
 
 import android.app.Notification
 import android.app.NotificationChannel
