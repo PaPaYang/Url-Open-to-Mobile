@@ -1,12 +1,15 @@
 package com.example.tabletreceiver
 
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.util.TypedValue
 import android.view.Gravity
-import android.view.View
+import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -18,14 +21,22 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 메인 루트 레이아웃 설정
+        // 수신 백그라운드 서비스 시작
+        val serviceIntent = Intent(this, ReceiverService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
+        }
+
+        // 메인 루트 레이아웃
         val rootLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.parseColor("#F5F7FA"))
             setPadding(dpToPx(24), dpToPx(32), dpToPx(24), dpToPx(32))
         }
 
-        // 상단 타이틀
+        // 타이틀
         val titleView = TextView(this).apply {
             text = "Tablet Receiver"
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f)
@@ -35,7 +46,7 @@ class MainActivity : AppCompatActivity() {
         }
         rootLayout.addView(titleView)
 
-        // 카드 컨테이너 레이아웃
+        // 카드 컨테이너
         val cardLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dpToPx(20), dpToPx(20), dpToPx(20), dpToPx(20))
@@ -46,7 +57,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // 서버 상태 항목
         cardLayout.addView(createLabelTextView("서버 상태"))
         val statusValue = TextView(this).apply {
             text = "● 실행 중 (Listening)"
@@ -57,7 +67,6 @@ class MainActivity : AppCompatActivity() {
         }
         cardLayout.addView(statusValue)
 
-        // IP 주소 항목
         cardLayout.addView(createLabelTextView("IP 주소"))
         val ipAddress = getLocalIpAddress()
         val ipValue = TextView(this).apply {
@@ -69,22 +78,32 @@ class MainActivity : AppCompatActivity() {
         }
         cardLayout.addView(ipValue)
 
-        // 포트 번호 항목
         cardLayout.addView(createLabelTextView("포트 번호"))
         val portValue = TextView(this).apply {
             text = "8080"
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
             setTypeface(Typeface.MONOSPACE, Typeface.BOLD)
             setTextColor(Color.parseColor("#0F172A"))
-            setPadding(0, dpToPx(4), 0, 0)
+            setPadding(0, dpToPx(4), 0, dpToPx(16))
         }
         cardLayout.addView(portValue)
 
+        // 테스트 동작 확인용 버튼
+        val testButton = Button(this).apply {
+            text = "태블릿 테스트 (Google 열기)"
+            setBackgroundColor(Color.parseColor("#2563EB"))
+            setTextColor(Color.WHITE)
+            setOnClickListener {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com"))
+                startActivity(intent)
+            }
+        }
+        cardLayout.addView(testButton)
+
         rootLayout.addView(cardLayout)
 
-        // 하단 안내 메시지
         val guideView = TextView(this).apply {
-            text = "모바일 앱에서 위 IP 주소와 포트 번호를 입력하여 연결하세요."
+            text = "모바일/PC 브라우저에서 아래 주소로 접속해 테스트하세요:\nhttp://$ipAddress:8080/?url=https://www.google.com"
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
             setTextColor(Color.parseColor("#64748B"))
             gravity = Gravity.CENTER
