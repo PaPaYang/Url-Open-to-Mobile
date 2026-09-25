@@ -20,9 +20,15 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    // [중요] 최신 안드로이드 렌더링 충돌 방지 설정
+    buildFeatures {
+        buildConfig true
     }
 }
 
