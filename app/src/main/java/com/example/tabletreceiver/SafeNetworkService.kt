@@ -24,10 +24,9 @@ class SafeNetworkService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         createNotificationChannel()
 
-        // 상단 알림창 설정 (안드로이드 시스템이 백그라운드 프로세스를 종료하지 못하게 방지)
         val notification = NotificationCompat.Builder(this, "TABLET_RECEIVER_CHANNEL")
             .setContentTitle("Tablet Receiver")
-            .setContentText("백그라운드에서 수신 대기 중...")
+            .setContentText("백그라운드에서 페이지 수신 대기 중...")
             .setSmallIcon(android.R.drawable.stat_notify_sync)
             .setOngoing(true)
             .build()
@@ -39,7 +38,6 @@ class SafeNetworkService : Service() {
             startServer()
         }
 
-        // 강제 종료되어도 시스템이 자동으로 서비스를 재시작하도록 설정
         return START_STICKY
     }
 
@@ -73,7 +71,6 @@ class SafeNetworkService : Service() {
                     }
                     val decodedUrl = URLDecoder.decode(targetUrl, "UTF-8")
 
-                    // 태블릿 기본 브라우저로 페이지 열기
                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(decodedUrl)).apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
