@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- 네트워크 및 알림 권한 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -10,8 +9,10 @@
 
     <application
         android:allowBackup="true"
-        android:label="SafeApp"
+        android:icon="@android:drawable/ic_menu_share"
+        android:label="Tablet Receiver"
         android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
         android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
 
         <activity
@@ -23,7 +24,6 @@
             </intent-filter>
         </activity>
 
-        <!-- 포그라운드 서비스 명시 (type 필수 지정) -->
         <service
             android:name=".SafeNetworkService"
             android:enabled="true"
