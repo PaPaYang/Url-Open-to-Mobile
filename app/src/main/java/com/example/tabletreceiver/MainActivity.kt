@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -15,8 +16,15 @@ class MainActivity : AppCompatActivity() {
     private val PERMISSION_REQUEST_CODE = 200
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate()
-        setContentView(R.layout.activity_main)
+        super.onCreate(savedInstanceState)
+
+        // XML 레이아웃 파일 없이 화면 텍스트 구성
+        val textView = TextView(this).apply {
+            text = "Tablet Receiver 실행 중\n\n크롬 확장프로그램에서 URL을 전송하면\n이 태블릿에서 자동으로 열립니다."
+            textSize = 18f
+            setPadding(60, 60, 60, 60)
+        }
+        setContentView(textView)
 
         checkAndRequestPermissions()
     }
@@ -39,8 +47,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun startSafeService() {
         val serviceIntent = Intent(this, SafeNetworkService::class.java)
-        
-        // Android 16 대응: 앱이 포그라운드(화면에 보일 때) 상태에서만 서비스를 안전하게 시작
+
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(serviceIntent)
@@ -48,7 +55,6 @@ class MainActivity : AppCompatActivity() {
                 startService(serviceIntent)
             }
         } catch (e: Exception) {
-            // 백그라운드 시작 제한 예외 수집 및 사용자 안내
             e.printStackTrace()
             Toast.makeText(this, "서비스를 시작할 수 없습니다: ${e.message}", Toast.LENGTH_SHORT).show()
         }
