@@ -28,30 +28,22 @@ class ReceiverService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        
-        // 백그라운드 절전 방지 (WakeLock & WifiLock)
         acquireLocks()
-        
         startForegroundServiceNotification()
         startServer()
     }
 
     private fun acquireLocks() {
-        // CPU 슬립 방지
         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
         wakeLock = powerManager.newWakeLock(
             PowerManager.PARTIAL_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
             "TabletReceiver::WakeLock"
         )
-        wakeLock?.acquire(10 * 60 * 1000L /* 10분 후 자동해제 예방용 재갱신 구조 */)
+        wakeLock?.acquire(10 * 60 * 1000L)
 
-        // 화면 켜진 상태가 아니어도 Wi-Fi 연결 유지
         val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        wifiLock = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.DEX) {
-            wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "TabletReceiver::WifiLock")
-        } else {
-            wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL, "TabletReceiver::WifiLock")
-        }
+        // 오타였던 DEX를 올바른 WifiManager 상수 방식으로 수정
+        wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "TabletReceiver::WifiLock")
         wifiLock?.acquire()
     }
 
@@ -137,7 +129,6 @@ class ReceiverService : Service() {
             url
         }
 
-        // 화면이 꺼져 있을 때 화면을 깨우고 앱을 전면에 띄우는 Intent Flag 설정
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl)).apply {
             addFlags(
                 Intent.FLAG_ACTIVITY_NEW_TASK or
