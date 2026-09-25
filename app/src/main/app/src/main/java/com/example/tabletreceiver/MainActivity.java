@@ -6,54 +6,65 @@ import android.net.Uri;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.widget.TextView;
 import fi.iki.elonen.NanoHTTPD;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 public class MainActivity extends Activity {
 
     private WebServer server;
+    private TextView textView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        TextView textView = new TextView(this);
-        textView.setTextSize(22);
+        textView = new TextView(this);
+        textView.setTextSize(20);
         textView.setPadding(60, 60, 60, 60);
         setContentView(textView);
 
-        String ipAddress = getWifiIpAddress();
-        textView.setText("Tablet Receiver 실행 중\n\n태블릿 IP 주소:\n" + ipAddress + "\n\n포트: 8080");
+        String ipAddress = getIPAddress();
+        textView.setText("수신 서버 실행 중...\n\n기기 IP 주소:\n" + ipAddress + "\n\n포트: 8080");
 
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    server = new WebServer(8080);
-                    server.start();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+        // 메인 스레드 멈춤 방지
+        new Thread(() -> {
+            try {
+                server = new WebServer(8080);
+                server.start();
+            } catch (Exception e) {
+                e.printStackTrace();
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    textView.setText("서버 실행 실패:\n" + e.getMessage())
+                );
             }
         }).start();
     }
 
-    private String getWifiIpAddress() {
-        WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
-        if (wifiManager != null) {
-            WifiInfo wifiInfo = wifiManager.getConnectionInfo();
-            int ip = wifiInfo.getIpAddress();
-            if (ip == 0) return "Wi-Fi 미연결";
-            return String.format("%d.%d.%d.%d",
-                    (ip & 0xff),
-                    (ip >> 8 & 0xff),
-                    (ip >> 16 & 0xff),
-                    (ip >> 24 & 0xff));
-        }
-        return "IP 불러오기 실패";
+    // Wi-Fi 및 모바일/핫스팟 IP 모두 안전하게 감지
+    private String getIPAddress() {
+        try {
+            List<NetworkInterface> interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
+            for (NetworkInterface intf : interfaces) {
+                List<InetAddress> addrs = Collections.list(intf.getInetAddresses());
+                for (InetAddress addr : addrs) {
+                    if (!addr.isLoopbackAddress()) {
+                        String sAddr = addr.getHostAddress();
+                        if (sAddr != null && sAddr.indexOf(':') < 0) { // IPv4만 추출
+                            return sAddr;
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) { }
+        return "IP 주소를 찾을 수 없음 (Wi-Fi 연결 확인)";
     }
 
     @Override
