@@ -28,6 +28,5 @@ android {
 }
 
 dependencies {
-    implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.material:material:1.9.0'
+    // 외부 AndroidX 테마 의존성을 완전히 제거하여 충돌 원인을 차단했습니다.
 }
