@@ -8,18 +8,21 @@ import android.os.Looper;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 
-import fi.iki.elonen.NanoHTTPD;
-
-import java.io.IOException;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.URLDecoder;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
 
-    private WebServer server;
+    private ServerSocket serverSocket;
+    private boolean isRunning = false;
     private TextView textView;
 
     @Override
@@ -34,45 +37,64 @@ public class MainActivity extends AppCompatActivity {
         String ipAddress = getIPAddress();
         textView.setText("Tablet Receiver 실행 중\n\n기기 IP 주소:\n" + ipAddress + "\n\n포트: 8080");
 
-        // 백그라운드 스레드에서 서버 스타트
+        startServer();
+    }
+
+    private void startServer() {
+        isRunning = true;
         new Thread(() -> {
             try {
-                server = new WebServer(8080);
-                server.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false);
-            } catch (IOException e) {
-                e.printStackTrace();
-                new Handler(Looper.getMainLooper()).post(() ->
+                serverSocket = new ServerSocket(8080);
+                while (isRunning) {
+                    Socket socket = serverSocket.accept();
+                    handleClient(socket);
+                }
+            } catch (Exception e) {
+                if (isRunning) {
+                    new Handler(Looper.getMainLooper()).post(() ->
                         textView.setText("서버 실행 오류:\n" + e.getMessage())
-                );
+                    );
+                }
             }
         }).start();
     }
 
-    private class WebServer extends NanoHTTPD {
-        public WebServer(int port) {
-            super(port);
-        }
+    private void handleClient(Socket socket) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+             OutputStream out = socket.getOutputStream()) {
 
-        @Override
-        public Response serve(IHTTPSession session) {
-            if ("/open".equals(session.getUri())) {
-                Map<String, List<String>> params = session.getParameters();
-                if (params != null && params.containsKey("url")) {
-                    List<String> urls = params.get("url");
-                    if (urls != null && !urls.isEmpty()) {
-                        String url = urls.get(0);
+            String line = reader.readLine();
+            if (line != null && line.startsWith("GET /open")) {
+                int urlStart = line.indexOf("url=");
+                if (urlStart != -1) {
+                    String urlParam = line.substring(urlStart + 4);
+                    int spaceIndex = urlParam.indexOf(" ");
+                    if (spaceIndex != -1) {
+                        urlParam = urlParam.substring(0, spaceIndex);
+                    }
+                    String targetUrl = URLDecoder.decode(urlParam, "UTF-8");
+
+                    // URL 열기 실행
+                    new Handler(Looper.getMainLooper()).post(() -> {
                         try {
-                            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl));
                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                             startActivity(intent);
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
-                        return newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, "OK");
-                    }
+                    });
                 }
             }
-            return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found");
+
+            // HTTP Response
+            String response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n\r\nOK";
+            out.write(response.getBytes("UTF-8"));
+            out.flush();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            try { socket.close(); } catch (Exception ignored) {}
         }
     }
 
@@ -91,14 +113,15 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         } catch (Exception ignored) { }
-        return "Wi-Fi 연결 상태를 확인하세요";
+        return "Wi-Fi 연결 확인 필요";
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (server != null) {
-            server.stop();
+        isRunning = false;
+        if (serverSocket != null) {
+            try { serverSocket.close(); } catch (Exception ignored) {}
         }
     }
 }
