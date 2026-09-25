@@ -1,4 +1,4 @@
-package com.example.safeapp
+package com.example.tabletreceiver
 
 import android.Manifest
 import android.content.Intent
