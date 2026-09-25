@@ -22,13 +22,14 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity {
 
     private ServerSocket serverSocket;
-    private boolean isRunning = false;
+    private volatile boolean isRunning = false;
     private TextView textView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        // XML 레이아웃 파싱 에러(Crash) 방지를 위해 코드 단에서 직접 생성
         textView = new TextView(this);
         textView.setTextSize(20);
         textView.setPadding(60, 60, 60, 60);
@@ -51,20 +52,22 @@ public class MainActivity extends AppCompatActivity {
                 }
             } catch (Exception e) {
                 if (isRunning) {
-                    new Handler(Looper.getMainLooper()).post(() ->
-                        textView.setText("서버 실행 오류:\n" + e.getMessage())
-                    );
+                    new Handler(Looper.getMainLooper()).post(() -> {
+                        if (textView != null) {
+                            textView.setText("서버 실행 오류:\n" + e.getMessage());
+                        }
+                    });
                 }
             }
         }).start();
     }
 
     private void handleClient(Socket socket) {
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), "UTF-8"));
              OutputStream out = socket.getOutputStream()) {
 
             String line = reader.readLine();
-            if (line != null && line.startsWith("GET /open")) {
+            if (line != null && line.contains("GET /open")) {
                 int urlStart = line.indexOf("url=");
                 if (urlStart != -1) {
                     String urlParam = line.substring(urlStart + 4);
@@ -74,7 +77,6 @@ public class MainActivity extends AppCompatActivity {
                     }
                     String targetUrl = URLDecoder.decode(urlParam, "UTF-8");
 
-                    // URL 열기 실행
                     new Handler(Looper.getMainLooper()).post(() -> {
                         try {
                             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl));
@@ -87,7 +89,6 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
 
-            // HTTP Response
             String response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n\r\nOK";
             out.write(response.getBytes("UTF-8"));
             out.flush();
