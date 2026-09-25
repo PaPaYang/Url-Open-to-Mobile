@@ -1,80 +1,103 @@
 package com.example.tabletreceiver
 
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import java.io.BufferedReader
+import java.io.InputStreamReader
 import java.io.OutputStream
+import java.net.ServerSocket
 import java.net.Socket
-import java.util.concurrent.Executors
+import java.net.URLDecoder
 
 class SafeNetworkService : Service() {
 
-    private val executor = Executors.newSingleThreadExecutor()
-    private val CHANNEL_ID = "safe_service_channel"
-
-    override fun onCreate() {
-        super.onCreate()
-        createNotificationChannel()
-    }
+    private var serverSocket: ServerSocket? = null
+    private var isRunning = false
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // 1. Android 16 포그라운드 서비스 크래시 방지: startForeground 필수 즉시 호출
-        try {
-            val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("안전한 네트워크 서비스")
-                .setContentText("동작 중입니다...")
-                .setSmallIcon(android.R.drawable.stat_notify_chat)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
-                .build()
+        createNotificationChannel()
+        
+        // 상단 알림창 설정 (어플 이름과 동일하게 적용)
+        val notification = NotificationCompat.Builder(this, "TABLET_RECEIVER_CHANNEL")
+            .setContentTitle("Tablet Receiver")
+            .setContentText("페이지 수신 대기 중...")
+            .setSmallIcon(android.R.drawable.stat_notify_sync)
+            .setOngoing(true)
+            .build()
 
-            startForeground(1001, notification)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            stopSelf()
-            return START_NOT_STICKY
-        }
+        startForeground(1, notification)
 
-        // 2. 비동기 쓰레드로 네트워킹 작업 수행 (NetworkOnMainThreadException 방지)
-        executor.execute {
-            runSocketClient()
+        if (!isRunning) {
+            isRunning = true
+            startServer()
         }
 
         return START_STICKY
     }
 
-    private fun runSocketClient() {
-        var socket: Socket? = null
-        try {
-            // 테스트용 IP 및 Port (실제 서버 설정으로 변경)
-            socket = Socket("127.0.0.1", 8080)
-            val output: OutputStream = socket.getOutputStream()
-            output.write("Hello Android 16".toByteArray())
-            output.flush()
-        } catch (e: Exception) {
-            // SocketTimeoutException, IOException 등 세부 예외 포착
-            e.printStackTrace()
-        } finally {
+    private fun startServer() {
+        Thread {
             try {
-                socket?.close()
+                serverSocket = ServerSocket(8080)
+                while (isRunning) {
+                    val socket = serverSocket?.accept()
+                    socket?.let { handleSocket(it) }
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+        }.start()
+    }
+
+    private fun handleSocket(socket: Socket) {
+        try {
+            val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
+            val out: OutputStream = socket.getOutputStream()
+            val requestLine = reader.readLine()
+
+            if (requestLine != null && requestLine.contains("/open")) {
+                val urlStart = requestLine.indexOf("url=")
+                if (urlStart != -1) {
+                    var targetUrl = requestLine.substring(urlStart + 4)
+                    val spaceIndex = targetUrl.indexOf(" ")
+                    if (spaceIndex != -1) {
+                        targetUrl = targetUrl.substring(0, spaceIndex)
+                    }
+                    val decodedUrl = URLDecoder.decode(targetUrl, "UTF-8")
+
+                    // 태블릿 기본 브라우저로 열기
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(decodedUrl)).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    startActivity(intent)
+                }
+            }
+
+            // HTTP 200 OK 응답
+            val response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nOK"
+            out.write(response.toByteArray(Charsets.UTF_8))
+            out.flush()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        } finally {
+            try { socket.close() } catch (e: Exception) {}
         }
     }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
-                CHANNEL_ID,
-                "Safe Service Channel",
+                "TABLET_RECEIVER_CHANNEL",
+                "Tablet Receiver", // 알림 설정 화면에 보이는 채널 이름
                 NotificationManager.IMPORTANCE_LOW
             )
-                val manager = getSystemService(NotificationManager::class.java)
+            val manager = getSystemService(NotificationManager::class.java)
             manager?.createNotificationChannel(channel)
         }
     }
@@ -83,6 +106,7 @@ class SafeNetworkService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        executor.shutdown()
+        isRunning = false
+        try { serverSocket?.close() } catch (e: Exception) {}
     }
 }
