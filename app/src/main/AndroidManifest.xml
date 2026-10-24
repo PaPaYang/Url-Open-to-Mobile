@@ -26,6 +26,12 @@
             </intent-filter>
         </activity>
 
+        <!-- 슬립 깨우기 및 브라우저 실행용 투명 액티비티 -->
+        <activity
+            android:name=".TransparentActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
         <service
             android:name=".ReceiverService"
             android:enabled="true"
