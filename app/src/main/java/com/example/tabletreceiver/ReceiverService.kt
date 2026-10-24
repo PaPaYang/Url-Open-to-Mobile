@@ -42,7 +42,6 @@ class ReceiverService : Service() {
         wakeLock?.acquire(10 * 60 * 1000L)
 
         val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        // 오타였던 DEX를 올바른 WifiManager 상수 방식으로 수정
         wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "TabletReceiver::WifiLock")
         wifiLock?.acquire()
     }
@@ -61,7 +60,7 @@ class ReceiverService : Service() {
 
         val notification: Notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle("Tablet Receiver 실행 중")
-            .setContentText("백그라운드에서 수신 대기 중 (포트 8080)")
+            .setContentText("슬립 깨우기 및 수신 대기 중 (포트 8080)")
             .setSmallIcon(android.R.drawable.ic_menu_share)
             .setOngoing(true)
             .build()
@@ -129,12 +128,18 @@ class ReceiverService : Service() {
             url
         }
 
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl)).apply {
-            addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK or
-                Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                Intent.FLAG_ACTIVITY_SINGLE_TOP
-            )
+        // 1. 하드웨어 화면을 강제로 깨우기 위한 PowerManager WakeLock 추가
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        val screenWakeLock = powerManager.newWakeLock(
+            PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
+            "TabletReceiver::ScreenWake"
+        )
+        screenWakeLock.acquire(3000)
+
+        // 2. 투명 액티비티를 통해 슬립/잠금 화면 위로 브라우저 실행
+        val intent = Intent(this, TransparentActivity::class.java).apply {
+            putExtra("url", targetUrl)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
         startActivity(intent)
     }
