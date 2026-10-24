@@ -17,7 +17,8 @@ class TransparentActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
-            val keyguardManager = getSystemService(Context.KEYGUARD_MANAGER) as KeyguardManager
+            // Context.KEYGUARD_SERVICE로 올바르게 수정
+            val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
             keyguardManager.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {})
         } else {
             window.addFlags(
